@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Zarządzanie Zleceniami</title>
-  <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zarządzanie Zleceniami z ZXing</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
-      max-width: 500px;
+      max-width: 600px;
       margin: auto;
     }
     .input-group {
@@ -28,10 +27,16 @@
       padding: 10px 15px;
       font-size: 16px;
     }
-    #camera {
+    video {
       width: 100%;
-      margin-top: 20px;
+      margin-top: 10px;
       display: none;
+      border: 1px solid #ccc;
+    }
+    #scannerStatus {
+      font-size: 14px;
+      color: red;
+      margin-top: 10px;
     }
     .entry {
       border-bottom: 1px solid #ccc;
@@ -49,11 +54,6 @@
       font-size: 12px;
       padding: 5px;
     }
-    #scannerStatus {
-      font-size: 14px;
-      color: red;
-      margin-top: 10px;
-    }
   </style>
 </head>
 <body>
@@ -70,7 +70,7 @@
   <button onclick="addEntry()">Dodaj</button>
 
   <div id="scannerStatus"></div>
-  <div id="camera"></div>
+  <video id="video" autoplay muted></video>
 
   <hr/>
   <h3>Lista Zleceń</h3>
@@ -81,6 +81,7 @@
 
   <script>
     let entries = [];
+    let codeReader = null;
 
     function loadEntries() {
       const saved = localStorage.getItem("entries");
@@ -107,10 +108,7 @@
 
       document.getElementById("orderNumber").value = "";
       document.getElementById("assignedPerson").value = "";
-
-      Quagga.stop();
-      document.getElementById("camera").style.display = "none";
-      document.getElementById("scannerStatus").innerText = "";
+      stopScanner();
     }
 
     function renderEntries() {
@@ -120,6 +118,7 @@
       entries.forEach((entry, index) => {
         const div = document.createElement("div");
         div.className = "entry";
+
         div.innerHTML = `
           <strong>${entry.order}</strong><br/>
           Przypisane do: ${entry.person}
@@ -179,46 +178,52 @@
     }
 
     function startScanner(inputId) {
-      document.getElementById("scannerStatus").innerText = "Uruchamianie kamery...";
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
+      video.style.display = "block";
+      status.innerText = "Uruchamianie kamery...";
 
-      Quagga.stop(); // zatrzymaj poprzednią sesję jeśli była
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
-      Quagga.init({
-        inputStream: {
-          type: "LiveStream",
-          constraints: {
-            facingMode: "environment"
-          },
-          target: document.querySelector('#camera')
-        },
-        decoder: {
-          readers: ["code_128_reader", "ean_reader", "qr_code_reader"]
-        }
-      }, function(err) {
-        if (err) {
-          console.error("Błąd inicjalizacji Quagga:", err);
-          document.getElementById("scannerStatus").innerText =
-            "Nie można uruchomić kamery. Upewnij się, że korzystasz z HTTPS lub localhost.";
-          return;
-        }
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          const deviceId = videoInputDevices[0].deviceId;
 
-        document.getElementById("camera").style.display = "block";
-        document.getElementById("scannerStatus").innerText = "Skanowanie...";
-        Quagga.start();
-
-        Quagga.offDetected(); // zapobiega wielokrotnemu rejestrowaniu
-        Quagga.onDetected(function (data) {
-          document.getElementById(inputId).value = data.codeResult.code;
-          Quagga.stop();
-          document.getElementById("camera").style.display = "none";
-          document.getElementById("scannerStatus").innerText = "Zeskanowano!";
+          return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+              document.getElementById(inputId).value = result.text;
+              stopScanner();
+              status.innerText = "Zeskanowano!";
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              status.innerText = "Błąd skanowania.";
+            }
+          });
+        })
+        .then(() => {
+          status.innerText = "Skanowanie...";
+        })
+        .catch(err => {
+          console.error(err);
+          status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
         });
-      });
     }
 
-    window.onload = () => {
-      loadEntries();
-    };
+    function stopScanner() {
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+      video.style.display = "none";
+      status.innerText = "";
+    }
+
+    window.onload = loadEntries;
   </script>
+
 </body>
 </html>
