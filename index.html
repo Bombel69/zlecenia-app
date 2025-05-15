@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <!-- QuaggaJS -->
-  <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+  <!-- Tytuł strony -->
   <title>Zarządzanie Zleceniami</title>
+
+  <!-- QuaggaJS - Skaner kodów kreskowych -->
+  <script src="https://unpkg.com/ @ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+
+  <!-- Stylowanie CSS -->
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -79,8 +83,7 @@
   <button onclick="exportToCSV()">Eksportuj do CSV</button>
   <button onclick="clearAll()">Wyczyść wszystko</button>
 
-
-
+  <!-- Główny kod JavaScript -->
   <script>
     let entries = [];
 
@@ -183,53 +186,38 @@
       }
     }
 
- function startScanner(inputId) {
-  document.getElementById("scannerStatus").innerText = "Uruchamianie kamery...";
+    function startScanner(inputId) {
+      document.getElementById("scannerStatus").innerText = "Uruchamianie kamery...";
 
-  const constraints = [
-    { facingMode: "environment" }, // Tylna kamera
-    { facingMode: "user" },         // Przednia kamera
-    {}                              // Domyślna kamera
-  ];
+      const constraints = [
+        { facingMode: "environment" }, // Tylna kamera
+        { facingMode: "user" },         // Przednia kamera
+        {}                              // Domyślna kamera
+      ];
 
-  let success = false;
+      let success = false;
 
-  for (let i = 0; i < constraints.length; i++) {
-    Quagga.init({
-      inputStream: {
-        type: "LiveStream",
-        target: document.querySelector('#camera'),
-        constraints: constraints[i],
-      },
-      decoder: {
-        readers: ["code_128_reader", "ean_reader", "qr_code_reader"]
-      }
-    }, function(err) {
-      if (!err) {
-        success = true;
-        document.getElementById("camera").style.display = "block";
-        document.getElementById("scannerStatus").innerText = "Skanowanie...";
-        Quagga.start();
-        return;
-      }
+      for (let i = 0; i < constraints.length; i++) {
+        Quagga.init({
+          inputStream: {
+            type: "LiveStream",
+            target: document.querySelector('#camera'),
+            constraints: constraints[i],
+          },
+          decoder: {
+            readers: ["code_128_reader", "ean_reader", "qr_code_reader"]
+          }
+        }, function(err) {
+          if (!err) {
+            success = true;
+            document.getElementById("camera").style.display = "block";
+            document.getElementById("scannerStatus").innerText = "Skanowanie...";
+            Quagga.start();
+            return;
+          }
 
-      if (i === constraints.length - 1) {
-        console.error("Nie można uruchomić kamery:", err);
-        document.getElementById("scannerStatus").innerText = "Nie można uruchomić kamery. Spróbuj przez HTTPS lub użyj innej przeglądarki.";
-      }
-    });
-
-    if (success) break;
-  }
-
-  Quagga.onDetected(function(data) {
-    document.getElementById(inputId).value = data.codeResult.code;
-    Quagga.stop();
-    document.getElementById("camera").style.display = "none";
-    document.getElementById("scannerStatus").innerText = "Zeskanowano!";
-  });
-}
           if (i === constraints.length - 1) {
+            console.error("Nie można uruchomić kamery:", err);
             document.getElementById("scannerStatus").innerText = "Nie można uruchomić kamery. Spróbuj przez HTTPS lub użyj innej przeglądarki.";
           }
         });
