@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zarządzanie Zleceniami</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+    }
+    .input-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+    }
+    #camera {
+      width: 100%;
+      margin-top: 20px;
+      display: none;
+    }
+    .entry {
+      border-bottom: 1px solid #ccc;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .entry-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+    }
+    .entry-buttons button {
+      flex: 1;
+      font-size: 12px;
+      padding: 5px;
+    }
+    #scannerStatus {
+      font-size: 14px;
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Nowe Zlecenie</h2>
+  <div class="input-group">
+    <input type="text" id="orderNumber" placeholder="Numer zlecenia" />
+    <button onclick="startScanner('orderNumber')">📷</button>
+  </div>
+  <div class="input-group">
+    <input type="text" id="assignedPerson" placeholder="Osoba przypisana" />
+    <button onclick="startScanner('assignedPerson')">📷</button>
+  </div>
+  <button onclick="addEntry()">Dodaj</button>
+
+  <div id="scannerStatus"></div>
+  <div id="camera"></div>
+
+  <hr/>
+  <h3>Lista Zleceń</h3>
+  <div id="entries"></div>
+
+  <button onclick="exportToCSV()">Eksportuj do CSV</button>
+  <button onclick="clearAll()">Wyczyść wszystko</button>
+
+  <!-- QuaggaJS -->
+  <script src="https://unpkg.com/ @ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+
+  <script>
+    let entries = [];
+
+    function loadEntries() {
+      const saved = localStorage.getItem("entries");
+      entries = saved ? JSON.parse(saved) : [];
+      renderEntries();
+    }
+
+    function saveEntries() {
+      localStorage.setItem("entries", JSON.stringify(entries));
+    }
+
+    function addEntry() {
+      const order = document.getElementById("orderNumber").value.trim();
+      const person = document.getElementById("assignedPerson").value.trim();
+
+      if (!order || !person) {
+        alert("Wypełnij oba pola!");
+        return;
+      }
+
+      entries.push({ order, person });
+      saveEntries();
+      renderEntries();
+
+      document.getElementById("orderNumber").value = "";
+      document.getElementById("assignedPerson").value = "";
+
+      // Zamknij kamerę jeśli była otwarta
+      Quagga.stop();
+      document.getElementById("camera").style.display = "none";
+      document.getElementById("scannerStatus").innerText = "";
+    }
+
+    function renderEntries() {
+      const container = document.getElementById("entries");
+      container.innerHTML = "";
+
+      entries.forEach((entry, index) => {
+        const div = document.createElement("div");
+        div.className = "entry";
+
+        div.innerHTML = `
+          <strong>${entry.order}</strong><br/>
+          Przypisane do: ${entry.person}
+          <div class="entry-buttons">
+            <button onclick="editEntry(${index})">Edytuj</button>
+            <button onclick="deleteEntry(${index})">Usuń</button>
+          </div>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    function deleteEntry(index) {
+      if (confirm("Czy na pewno usunąć ten wpis?")) {
+        entries.splice(index, 1);
+        saveEntries();
+        renderEntries();
+      }
+    }
+
+    function editEntry(index) {
+      const entry = entries[index];
+      const newOrder = prompt("Zmień numer zlecenia:", entry.order);
+      const newPerson = prompt("Zmień osobę przypisaną:", entry.person);
+
+      if (newOrder !== null && newPerson !== null) {
+        entries[index] = { order: newOrder.trim(), person: newPerson.trim() };
+        saveEntries();
+        renderEntries();
+      }
+    }
+
+    function exportToCSV() {
+      const csvRows = [];
+      csvRows.push(["Numer zlecenia", "Przypisana osoba"].join(";"));
+
+      entries.forEach(entry => {
+        csvRows.push([entry.order, entry.person].join(";"));
+      });
+
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "zlecenia.csv");
+      link.click();
+    }
+
+    function clearAll() {
+      if (confirm("Czy na pewno wyczyścić wszystkie zlecenia?")) {
+        entries = [];
+        saveEntries();
+        renderEntries();
+      }
+    }
+
+    function startScanner(inputId) {
+      document.getElementById("scannerStatus").innerText = "Uruchamianie kamery...";
+
+      const constraints = [
+        { facingMode: "environment" }, // Tylna kamera
+        { facingMode: "user" },         // Przednia kamera
+        {}                              // Domyślna kamera
+      ];
+
+      let success = false;
+
+      for (let i = 0; i < constraints.length; i++) {
+        Quagga.init({
+          inputStream: {
+            type: "LiveStream",
+            target: document.querySelector('#camera'),
+            constraints: constraints[i],
+          },
+          decoder: {
+            readers: ["code_128_reader", "ean_reader", "qr_code_reader"]
+          }
+        }, function(err) {
+          if (!err) {
+            success = true;
+            document.getElementById("camera").style.display = "block";
+            document.getElementById("scannerStatus").innerText = "Skanowanie...";
+            Quagga.start();
+            return;
+          }
+
+          if (i === constraints.length - 1) {
+            document.getElementById("scannerStatus").innerText = "Nie można uruchomić kamery. Spróbuj przez HTTPS lub użyj innej przeglądarki.";
+          }
+        });
+
+        if (success) break;
+      }
+
+      Quagga.onDetected(function(data) {
+        document.getElementById(inputId).value = data.codeResult.code;
+        Quagga.stop();
+        document.getElementById("camera").style.display = "none";
+        document.getElementById("scannerStatus").innerText = "Zeskanowano!";
+      });
+    }
+
+    window.onload = () => {
+      loadEntries();
+    };
+  </script>
+</body>
+</html>
