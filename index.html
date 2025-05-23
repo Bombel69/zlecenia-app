@@ -71,8 +71,8 @@
     <label for="zoneSelect">Strefa:</label>
     <select id="zoneSelect">
       <option value="Nadgodziny">Nadgodziny</option>
-      <option value="Serja 1">Seria 1</option>
-      <option value="Serja 2">Seria 2</option>
+      <option value="Serja 1">Serja 1</option>
+      <option value="Serja 2">Serja 2</option>
       <option value="Szkoleniowa">Szkoleniowa</option>
       <option value="Prototypy">Prototypy</option>
     </select>
@@ -102,6 +102,16 @@
       localStorage.setItem("entries", JSON.stringify(entries));
     }
 
+    function formatDate(date) {
+      return date.toLocaleString('pl-PL', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
     function addEntry() {
       const order = document.getElementById("orderNumber").value.trim();
       const person = document.getElementById("assignedPerson").value.trim();
@@ -112,7 +122,10 @@
         return;
       }
 
-      entries.push({ order, person, zone });
+      const now = new Date();
+      const date = formatDate(now);
+
+      entries.push({ order, person, zone, date });
       saveEntries();
       renderEntries();
 
@@ -133,7 +146,8 @@
         div.innerHTML = `
           <strong>${entry.order}</strong><br/>
           Przypisane do: ${entry.person}<br/>
-          Strefa: ${entry.zone}
+          Strefa: ${entry.zone}<br/>
+          Data dodania: ${entry.date}
           <div class="entry-buttons">
             <button onclick="editEntry(${index})">Edytuj</button>
             <button onclick="deleteEntry(${index})">Usuń</button>
@@ -158,7 +172,13 @@
       const newZone = prompt("Zmień strefę:", entry.zone);
 
       if (newOrder !== null && newPerson !== null && newZone !== null) {
-        entries[index] = { order: newOrder.trim(), person: newPerson.trim(), zone: newZone.trim() };
+        entries[index] = {
+          ...entries[index],
+          order: newOrder.trim(),
+          person: newPerson.trim(),
+          zone: newZone.trim()
+          // data niezmieniana
+        };
         saveEntries();
         renderEntries();
       }
@@ -166,10 +186,10 @@
 
     function exportToCSV() {
       const csvRows = [];
-      csvRows.push(["Numer zlecenia", "Przypisana osoba", "Strefa"].join(";"));
+      csvRows.push(["Numer zlecenia", "Przypisana osoba", "Strefa", "Data dodania"].join(";"));
 
       entries.forEach(entry => {
-        csvRows.push([entry.order, entry.person, entry.zone].join(";"));
+        csvRows.push([entry.order, entry.person, entry.zone, entry.date].join(";"));
       });
 
       const csvString = csvRows.join("\n");
