@@ -59,17 +59,21 @@
 <body>
 
   <h2>Nowe Zlecenie</h2>
+
   <div class="input-group">
     <input type="text" id="orderNumber" placeholder="Skanuj numer zlecenia" />
     <button onclick="startScanner('orderNumber')">📷</button>
   </div>
+
   <div class="input-group" id="assignedGroup" style="display: none;">
     <input type="text" id="assignedPerson" placeholder="Osoba przypisana" />
     <button onclick="startScanner('assignedPerson')">📷</button>
   </div>
+
   <div class="input-group">
     <label for="zoneSelect">Strefa:</label>
     <select id="zoneSelect">
+      <option value="">-- Wybierz strefę --</option>
       <option value="Nadgodziny">Nadgodziny</option>
       <option value="Serja 1">Serja 1</option>
       <option value="Serja 2">Serja 2</option>
@@ -77,7 +81,11 @@
       <option value="Prototypy">Prototypy</option>
     </select>
   </div>
-  <button onclick="addEntry()">Dodaj</button>
+
+  <div class="input-group">
+    <button onclick="addEntry()">Dodaj</button>
+    <button onclick="clearScanned()">Wyczyść zeskanowane</button>
+  </div>
 
   <div id="scannerStatus"></div>
   <video id="video" autoplay muted></video>
@@ -113,17 +121,17 @@
       });
     }
 
-    document.getElementById("zoneSelect").addEventListener("change", () => {
-      const strefa = document.getElementById("zoneSelect").value;
-      document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
-    });
-
     function addEntry() {
-      const person = document.getElementById("assignedPerson").value.trim();
       const zone = document.getElementById("zoneSelect").value;
+      const person = document.getElementById("assignedPerson").value.trim();
+
+      if (!zone) {
+        alert("Musisz wybrać strefę!");
+        return;
+      }
 
       if (zone === "Nadgodziny" && !person) {
-        alert("Wpisz osobę przypisaną!");
+        alert("Wpisz osobę przypisaną dla strefy Nadgodziny!");
         return;
       }
 
@@ -136,7 +144,7 @@
       const date = formatDate(now);
 
       scannedOrders.forEach(order => {
-        entries.push({ order, person, zone, date });
+        entries.push({ order, person: zone === "Nadgodziny" ? person : "", zone, date });
       });
 
       saveEntries();
@@ -146,7 +154,12 @@
       document.getElementById("orderNumber").value = "";
       document.getElementById("assignedPerson").value = "";
       stopScanner();
-      alert("Dodano " + entries.length + " zleceń.");
+      alert("Dodano zlecenia: " + scannedOrders.length);
+    }
+
+    function clearScanned() {
+      scannedOrders = [];
+      document.getElementById("orderNumber").value = "";
     }
 
     function renderEntries() {
@@ -182,15 +195,15 @@
     function editEntry(index) {
       const entry = entries[index];
       const newOrder = prompt("Zmień numer zlecenia:", entry.order);
-      const newPerson = entry.zone === "Nadgodziny" ? prompt("Zmień osobę przypisaną:", entry.person) : entry.person;
       const newZone = prompt("Zmień strefę:", entry.zone);
+      const newPerson = newZone === "Nadgodziny" ? prompt("Zmień osobę przypisaną:", entry.person) : "";
 
       if (newOrder !== null && newZone !== null) {
         entries[index] = {
           ...entries[index],
           order: newOrder.trim(),
-          person: newZone === "Nadgodziny" ? newPerson.trim() : "",
-          zone: newZone.trim()
+          zone: newZone.trim(),
+          person: newPerson.trim()
         };
         saveEntries();
         renderEntries();
@@ -265,7 +278,16 @@
       status.innerText = "";
     }
 
-    window.onload = loadEntries;
+    document.getElementById("zoneSelect").addEventListener("change", () => {
+      const strefa = document.getElementById("zoneSelect").value;
+      document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
+    });
+
+    window.onload = () => {
+      loadEntries();
+      const strefa = document.getElementById("zoneSelect").value;
+      document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
+    };
   </script>
 
 </body>
