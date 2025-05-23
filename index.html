@@ -18,7 +18,7 @@
       align-items: center;
       margin-top: 10px;
     }
-    input {
+    input, select {
       flex: 1;
       padding: 10px;
       font-size: 16px;
@@ -67,6 +67,16 @@
     <input type="text" id="assignedPerson" placeholder="Osoba przypisana" />
     <button onclick="startScanner('assignedPerson')">📷</button>
   </div>
+  <div class="input-group">
+    <label for="zoneSelect">Strefa:</label>
+    <select id="zoneSelect">
+      <option value="Nadgodziny">Nadgodziny</option>
+      <option value="Serja 1">Serja 1</option>
+      <option value="Serja 2">Serja 2</option>
+      <option value="Szkoleniowa">Szkoleniowa</option>
+      <option value="Prototypy">Prototypy</option>
+    </select>
+  </div>
   <button onclick="addEntry()">Dodaj</button>
 
   <div id="scannerStatus"></div>
@@ -77,7 +87,6 @@
   <div id="entries"></div>
 
   <button onclick="exportToCSV()">Eksportuj do CSV</button>
-  <button onclick="clearAll()">Wyczyść wszystko</button>
 
   <script>
     let entries = [];
@@ -96,18 +105,20 @@
     function addEntry() {
       const order = document.getElementById("orderNumber").value.trim();
       const person = document.getElementById("assignedPerson").value.trim();
+      const zone = document.getElementById("zoneSelect").value;
 
       if (!order || !person) {
-        alert("Wypełnij oba pola!");
+        alert("Wypełnij pola Numer zlecenia i Osoba przypisana!");
         return;
       }
 
-      entries.push({ order, person });
+      entries.push({ order, person, zone });
       saveEntries();
       renderEntries();
 
       document.getElementById("orderNumber").value = "";
       document.getElementById("assignedPerson").value = "";
+      document.getElementById("zoneSelect").selectedIndex = 0;
       stopScanner();
     }
 
@@ -121,7 +132,8 @@
 
         div.innerHTML = `
           <strong>${entry.order}</strong><br/>
-          Przypisane do: ${entry.person}
+          Przypisane do: ${entry.person}<br/>
+          Strefa: ${entry.zone}
           <div class="entry-buttons">
             <button onclick="editEntry(${index})">Edytuj</button>
             <button onclick="deleteEntry(${index})">Usuń</button>
@@ -143,9 +155,10 @@
       const entry = entries[index];
       const newOrder = prompt("Zmień numer zlecenia:", entry.order);
       const newPerson = prompt("Zmień osobę przypisaną:", entry.person);
+      const newZone = prompt("Zmień strefę:", entry.zone);
 
-      if (newOrder !== null && newPerson !== null) {
-        entries[index] = { order: newOrder.trim(), person: newPerson.trim() };
+      if (newOrder !== null && newPerson !== null && newZone !== null) {
+        entries[index] = { order: newOrder.trim(), person: newPerson.trim(), zone: newZone.trim() };
         saveEntries();
         renderEntries();
       }
@@ -153,10 +166,10 @@
 
     function exportToCSV() {
       const csvRows = [];
-      csvRows.push(["Numer zlecenia", "Przypisana osoba"].join(";"));
+      csvRows.push(["Numer zlecenia", "Przypisana osoba", "Strefa"].join(";"));
 
       entries.forEach(entry => {
-        csvRows.push([entry.order, entry.person].join(";"));
+        csvRows.push([entry.order, entry.person, entry.zone].join(";"));
       });
 
       const csvString = csvRows.join("\n");
@@ -169,53 +182,42 @@
       link.click();
     }
 
-    function clearAll() {
-      if (confirm("Czy na pewno wyczyścić wszystkie zlecenia?")) {
-        entries = [];
-        saveEntries();
-        renderEntries();
-      }
-    }
-
     function startScanner(inputId) {
-  const video = document.getElementById("video");
-  const status = document.getElementById("scannerStatus");
-  video.style.display = "block";
-  status.innerText = "Uruchamianie kamery...";
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
+      video.style.display = "block";
+      status.innerText = "Uruchamianie kamery...";
 
-  codeReader = new ZXing.BrowserMultiFormatReader();
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
-  codeReader
-    .listVideoInputDevices()
-    .then(videoInputDevices => {
-      // SZUKAJ KAMERY TYLNEJ
-      let backCamera = videoInputDevices.find(device =>
-        device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
-      );
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          let backCamera = videoInputDevices.find(device =>
+            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
+          );
+          const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-      // Jeśli nie znaleziono, użyj pierwszej dostępnej
-      const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-
-      return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-        if (result) {
-          document.getElementById(inputId).value = result.text;
-          stopScanner();
-          status.innerText = "Zeskanowano!";
-        }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
+          return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+              document.getElementById(inputId).value = result.text;
+              stopScanner();
+              status.innerText = "Zeskanowano!";
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              status.innerText = "Błąd skanowania.";
+            }
+          });
+        })
+        .then(() => {
+          status.innerText = "Skanowanie...";
+        })
+        .catch(err => {
           console.error(err);
-          status.innerText = "Błąd skanowania.";
-        }
-      });
-    })
-    .then(() => {
-      status.innerText = "Skanowanie...";
-    })
-    .catch(err => {
-      console.error(err);
-      status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
-    });
-}
+          status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
+        });
+    }
 
     function stopScanner() {
       const video = document.getElementById("video");
