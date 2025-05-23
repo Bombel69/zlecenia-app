@@ -91,6 +91,10 @@
   <video id="video" autoplay muted></video>
 
   <hr/>
+  <div class="input-group">
+    <input type="text" id="searchInput" placeholder="Szukaj numeru zlecenia..." oninput="filterEntries()" />
+  </div>
+
   <h3>Lista Zleceń</h3>
   <div id="entries"></div>
 
@@ -164,9 +168,12 @@
 
     function renderEntries() {
       const container = document.getElementById("entries");
+      const searchTerm = document.getElementById("searchInput")?.value?.toLowerCase() || "";
       container.innerHTML = "";
 
       entries.forEach((entry, index) => {
+        if (!entry.order.toLowerCase().includes(searchTerm)) return;
+
         const div = document.createElement("div");
         div.className = "entry";
 
@@ -182,6 +189,10 @@
         `;
         container.appendChild(div);
       });
+    }
+
+    function filterEntries() {
+      renderEntries();
     }
 
     function deleteEntry(index) {
