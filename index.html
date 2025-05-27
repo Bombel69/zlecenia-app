@@ -285,8 +285,10 @@ function startScanner(inputId) {
       });
     })
     .then(() => {
-      status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
-    })
+  if (inputId === "orderNumber") {
+    status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
+  }
+})
     .catch(err => {
       console.error(err);
       status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
