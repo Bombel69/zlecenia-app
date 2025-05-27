@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -140,13 +141,14 @@
         return;
       }
 
-      if (scannedOrders.length === 0) {
+      if (!scannedOrders || scannedOrders.length === 0) {
         alert("Brak zeskanowanych zleceń!");
         return;
       }
 
       const now = new Date();
       const date = formatDate(now);
+      const addedCount = scannedOrders.length;
 
       scannedOrders.forEach(order => {
         entries.push({ order, person: zone === "Nadgodziny" ? person : "", zone, date });
@@ -159,7 +161,7 @@
       document.getElementById("orderNumber").value = "";
       document.getElementById("assignedPerson").value = "";
       stopScanner();
-      alert("Dodano zlecenia: " + scannedOrders.length);
+      document.getElementById("scannerStatus").innerText = "Dodano zlecenia: " + addedCount;
     }
 
     function clearScanned() {
@@ -178,16 +180,16 @@
         const div = document.createElement("div");
         div.className = "entry";
 
-        div.innerHTML = `
-          <strong>${entry.order}</strong><br/>
-          ${entry.zone === "Nadgodziny" ? `Przypisane do: ${entry.person}<br/>` : ""}
-          Strefa: ${entry.zone}<br/>
-          Data dodania: ${entry.date}
+        div.innerHTML = \`
+          <strong>\${entry.order}</strong><br/>
+          \${entry.zone === "Nadgodziny" ? \`Przypisane do: \${entry.person}<br/>\` : ""}
+          Strefa: \${entry.zone}<br/>
+          Data dodania: \${entry.date}
           <div class="entry-buttons">
-            <button onclick="editEntry(${index})">Edytuj</button>
-            <button onclick="deleteEntry(${index})">Usuń</button>
+            <button onclick="editEntry(\${index})">Edytuj</button>
+            <button onclick="deleteEntry(\${index})">Usuń</button>
           </div>
-        `;
+        \`;
         container.appendChild(div);
       });
     }
@@ -239,62 +241,60 @@
       link.setAttribute("download", "zlecenia.csv");
       link.click();
     }
-function startScanner(inputId) {
-  const video = document.getElementById("video");
-  const status = document.getElementById("scannerStatus");
 
-  // Zatrzymaj poprzedni skaner, jeśli był aktywny
-  if (codeReader) {
-    codeReader.reset();
-    codeReader = null;
-  }
+    function startScanner(inputId) {
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
 
-  video.style.display = "block";
-  status.innerText = "Uruchamianie kamery...";
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
 
-  codeReader = new ZXing.BrowserMultiFormatReader();
+      video.style.display = "block";
+      status.innerText = "Uruchamianie kamery...";
 
-  codeReader
-    .listVideoInputDevices()
-    .then(videoInputDevices => {
-      let backCamera = videoInputDevices.find(device =>
-        device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
-      );
-      const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
-      return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-        if (result) {
-          const input = document.getElementById(inputId);
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          let backCamera = videoInputDevices.find(device =>
+            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
+          );
+          const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-          if (inputId === "orderNumber") {
-            if (!scannedOrders.includes(result.text)) {
-              scannedOrders.push(result.text);
-              input.value = scannedOrders.join(", ");
+          return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+              const input = document.getElementById(inputId);
+
+              if (inputId === "orderNumber") {
+                if (!scannedOrders.includes(result.text)) {
+                  scannedOrders.push(result.text);
+                  document.getElementById("orderNumber").value = scannedOrders.join(", ");
+                }
+                status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
+              } else if (inputId === "assignedPerson") {
+                input.value = result.text;
+                stopScanner();
+                status.innerText = "Zeskanowano osobę.";
+              }
             }
-            status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
-          } else {
-            input.value = result.text;
-            stopScanner();
-            status.innerText = "Zeskanowano osobę.";
-          }
-        }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.error(err);
-          status.innerText = "Błąd skanowania.";
-        }
-      });
-    })
-    .then(() => {
-  if (inputId === "orderNumber") {
-    status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
-  }
-})
-    .catch(err => {
-      console.error(err);
-      status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
-    });
-}
 
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              status.innerText = "Błąd skanowania.";
+            }
+          });
+        })
+        .then(() => {
+          status.innerText = "Skanowanie aktywne...";
+        })
+        .catch(err => {
+          console.error(err);
+          status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
+        });
+    }
 
     function stopScanner() {
       const video = document.getElementById("video");
@@ -307,16 +307,16 @@ function startScanner(inputId) {
       status.innerText = "Skanowanie zakończone.";
     }
 
-    document.getElementById("zoneSelect").addEventListener("change", () => {
+    function updateAssignedFieldVisibility() {
       const strefa = document.getElementById("zoneSelect").value;
       document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
-    });
+    }
 
-    window.onload = () => {
+    document.addEventListener("DOMContentLoaded", () => {
       loadEntries();
-      const strefa = document.getElementById("zoneSelect").value;
-      document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
-    };
+      updateAssignedFieldVisibility();
+      document.getElementById("zoneSelect").addEventListener("change", updateAssignedFieldVisibility);
+    });
   </script>
 
 </body>
