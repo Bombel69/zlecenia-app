@@ -178,16 +178,16 @@
         const div = document.createElement("div");
         div.className = "entry";
 
-        div.innerHTML = 
+        div.innerHTML = `
           <strong>${entry.order}</strong><br/>
-          ${entry.zone === "Nadgodziny" ? Przypisane do: ${entry.person}<br/> : ""}
+          ${entry.zone === "Nadgodziny" ? `Przypisane do: ${entry.person}<br/>` : ""}
           Strefa: ${entry.zone}<br/>
           Data dodania: ${entry.date}
           <div class="entry-buttons">
             <button onclick="editEntry(${index})">Edytuj</button>
             <button onclick="deleteEntry(${index})">Usuń</button>
           </div>
-        ;
+        `;
         container.appendChild(div);
       });
     }
@@ -239,62 +239,45 @@
       link.setAttribute("download", "zlecenia.csv");
       link.click();
     }
-function startScanner(inputId) {
-  const video = document.getElementById("video");
-  const status = document.getElementById("scannerStatus");
 
-  // Zatrzymaj poprzedni skaner, jeśli był aktywny
-  if (codeReader) {
-    codeReader.reset();
-    codeReader = null;
-  }
+    function startScanner(inputId) {
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
+      video.style.display = "block";
+      status.innerText = "Uruchamianie kamery...";
 
-  video.style.display = "block";
-  status.innerText = "Uruchamianie kamery...";
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
-  codeReader = new ZXing.BrowserMultiFormatReader();
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          let backCamera = videoInputDevices.find(device =>
+            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
+          );
+          const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-  codeReader
-    .listVideoInputDevices()
-    .then(videoInputDevices => {
-      let backCamera = videoInputDevices.find(device =>
-        device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
-      );
-      const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-
-      return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-        if (result) {
-          const input = document.getElementById(inputId);
-
-          if (inputId === "orderNumber") {
-            if (!scannedOrders.includes(result.text)) {
-              scannedOrders.push(result.text);
-              input.value = scannedOrders.join(", ");
+          return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+              if (!scannedOrders.includes(result.text)) {
+                scannedOrders.push(result.text);
+                document.getElementById("orderNumber").value = scannedOrders.join(", ");
+              }
+              status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
             }
-            status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
-          } else {
-            input.value = result.text;
-            stopScanner();
-            status.innerText = "Zeskanowano osobę.";
-          }
-        }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              status.innerText = "Błąd skanowania.";
+            }
+          });
+        })
+        .then(() => {
+          status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
+        })
+        .catch(err => {
           console.error(err);
-          status.innerText = "Błąd skanowania.";
-        }
-      });
-    })
-    .then(() => {
-  if (inputId === "orderNumber") {
-    status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
-  }
-})
-    .catch(err => {
-      console.error(err);
-      status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
-    });
-}
-
+          status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
+        });
+    }
 
     function stopScanner() {
       const video = document.getElementById("video");
