@@ -35,7 +35,7 @@
     }
     #scannerStatus {
       font-size: 14px;
-      color: green;
+      color: red;
       margin-top: 10px;
     }
     .entry {
@@ -63,7 +63,6 @@
   <div class="input-group">
     <input type="text" id="orderNumber" placeholder="Skanuj numer zlecenia" />
     <button onclick="startScanner('orderNumber')">📷</button>
-    <button onclick="stopScanner()">Zakończ skanowanie</button>
   </div>
 
   <div class="input-group" id="assignedGroup" style="display: none;">
@@ -262,7 +261,7 @@
                 scannedOrders.push(result.text);
                 document.getElementById("orderNumber").value = scannedOrders.join(", ");
               }
-              status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
+              status.innerText = "Zeskanowano!";
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
               console.error(err);
@@ -271,7 +270,7 @@
           });
         })
         .then(() => {
-          status.innerText = "Skanowanie w toku – zeskanowane: " + scannedOrders.length;
+          status.innerText = "Skanowanie...";
         })
         .catch(err => {
           console.error(err);
@@ -287,7 +286,7 @@
         codeReader = null;
       }
       video.style.display = "none";
-      status.innerText = "Skanowanie zakończone.";
+      status.innerText = "";
     }
 
     document.getElementById("zoneSelect").addEventListener("change", () => {
