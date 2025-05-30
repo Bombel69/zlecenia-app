@@ -35,7 +35,7 @@
     }
     #scannerStatus {
       font-size: 14px;
-      color: green;
+      color: red;
       margin-top: 10px;
     }
     .entry {
@@ -63,7 +63,6 @@
   <div class="input-group">
     <input type="text" id="orderNumber" placeholder="Skanuj numer zlecenia" />
     <button onclick="startScanner('orderNumber')">📷</button>
-    <button onclick="stopScanner()">Zakończ skanowanie</button>
   </div>
 
   <div class="input-group" id="assignedGroup" style="display: none;">
@@ -239,71 +238,45 @@
       link.setAttribute("download", "zlecenia.csv");
       link.click();
     }
-function startScanner(inputId) {
-  const video = document.getElementById("video");
-  const status = document.getElementById("scannerStatus");
 
-  // 1. Zatrzymaj poprzedni skaner, jeśli istnieje
-  if (codeReader) {
-    codeReader.reset();
-    codeReader = null;
-  }
+    function startScanner(inputId) {
+      const video = document.getElementById("video");
+      const status = document.getElementById("scannerStatus");
+      video.style.display = "block";
+      status.innerText = "Uruchamianie kamery...";
 
-  video.style.display = "block";
-  status.innerText = "Uruchamianie kamery...";
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
-  codeReader = new ZXing.BrowserMultiFormatReader();
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          let backCamera = videoInputDevices.find(device =>
+            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
+          );
+          const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
 
-  codeReader
-    .listVideoInputDevices()
-    .then(videoInputDevices => {
-      let backCamera = videoInputDevices.find(device =>
-        device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")
-      );
-      const deviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-
-      return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-        if (result) {
-          const input = document.getElementById(inputId);
-
-          if (inputId === "orderNumber") {
-            // Tryb zleceń – wiele kodów
-            if (!scannedOrders.includes(result.text)) {
-              scannedOrders.push(result.text);
-              input.value = scannedOrders.join(", ");
+          return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+              if (!scannedOrders.includes(result.text)) {
+                scannedOrders.push(result.text);
+                document.getElementById("orderNumber").value = scannedOrders.join(", ");
+              }
+              status.innerText = "Zeskanowano!";
             }
-            status.innerText = "Skanowanie zleceń – zeskanowane: " + scannedOrders.length;
-          } else {
-            // Tryb osoby – tylko jeden kod
-            input.value = result.text;
-            stopScanner(); // natychmiast zakończ skanowanie po zeskanowaniu jednej osoby
-            status.innerText = "Zeskanowano osobę.";
-          }
-        }
-
-        if (err && !(err instanceof ZXing.NotFoundException)) {
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              status.innerText = "Błąd skanowania.";
+            }
+          });
+        })
+        .then(() => {
+          status.innerText = "Skanowanie...";
+        })
+        .catch(err => {
           console.error(err);
-          status.innerText = "Błąd skanowania.";
-        }
-      });
-    })
-    .then(() => {
-      if (inputId === "orderNumber") {
-        status.innerText = "Skanowanie zleceń – zeskanowane: " + scannedOrders.length;
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      status.innerText = "Nie można uruchomić kamery.";
-    });
-}
-})
-    .catch(err => {
-      console.error(err);
-      status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
-    });
-}
-
+          status.innerText = "Nie można uruchomić kamery. Upewnij się, że masz HTTPS lub localhost.";
+        });
+    }
 
     function stopScanner() {
       const video = document.getElementById("video");
@@ -313,7 +286,7 @@ function startScanner(inputId) {
         codeReader = null;
       }
       video.style.display = "none";
-      status.innerText = "Skanowanie zakończone.";
+      status.innerText = "";
     }
 
     document.getElementById("zoneSelect").addEventListener("change", () => {
