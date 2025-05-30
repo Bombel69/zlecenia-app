@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Zarządzanie Zleceniami z ZXing</title>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script> 
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -54,6 +54,9 @@
       font-size: 12px;
       padding: 5px;
     }
+    #stopScanButton {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -85,6 +88,11 @@
   <div class="input-group">
     <button onclick="addEntry()">Dodaj</button>
     <button onclick="clearScanned()">Wyczyść zeskanowane</button>
+  </div>
+
+  <!-- Nowy przycisk -->
+  <div class="input-group">
+    <button id="stopScanButton" onclick="stopScanner()">Zakończ skanowanie</button>
   </div>
 
   <div id="scannerStatus"></div>
@@ -242,7 +250,16 @@
     function startScanner(inputId) {
       const video = document.getElementById("video");
       const status = document.getElementById("scannerStatus");
+
+      // Zatrzymaj poprzedni skaner, jeśli istnieje
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+
       video.style.display = "block";
+      document.getElementById("stopScanButton").style.display = "flex";
+
       status.innerText = "Uruchamianie kamery...";
 
       codeReader = new ZXing.BrowserMultiFormatReader();
@@ -257,12 +274,21 @@
 
           return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
             if (result) {
-              if (!scannedOrders.includes(result.text)) {
-                scannedOrders.push(result.text);
-                document.getElementById("orderNumber").value = scannedOrders.join(", ");
+              const input = document.getElementById(inputId);
+
+              if (inputId === "orderNumber") {
+                if (!scannedOrders.includes(result.text)) {
+                  scannedOrders.push(result.text);
+                  input.value = scannedOrders.join(", ");
+                }
+                status.innerText = "Zeskanowano zlecenie – liczba: " + scannedOrders.length;
+              } else {
+                input.value = result.text;
+                stopScanner(); // automatycznie kończy po jednym skanie
+                status.innerText = "Zeskanowano osobę.";
               }
-              status.innerText = "Zeskanowano!";
             }
+
             if (err && !(err instanceof ZXing.NotFoundException)) {
               console.error(err);
               status.innerText = "Błąd skanowania.";
@@ -270,7 +296,9 @@
           });
         })
         .then(() => {
-          status.innerText = "Skanowanie...";
+          if (inputId === "orderNumber") {
+            status.innerText = "Skanowanie... zeskanowane: " + scannedOrders.length;
+          }
         })
         .catch(err => {
           console.error(err);
@@ -281,12 +309,16 @@
     function stopScanner() {
       const video = document.getElementById("video");
       const status = document.getElementById("scannerStatus");
+      const stopBtn = document.getElementById("stopScanButton");
+
       if (codeReader) {
         codeReader.reset();
         codeReader = null;
       }
+
       video.style.display = "none";
       status.innerText = "";
+      stopBtn.style.display = "none";
     }
 
     document.getElementById("zoneSelect").addEventListener("change", () => {
@@ -300,6 +332,5 @@
       document.getElementById("assignedGroup").style.display = strefa === "Nadgodziny" ? "flex" : "none";
     };
   </script>
-
 </body>
 </html>
